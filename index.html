@@ -1,0 +1,764 @@
+
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+   <style>
+    body { font-family: sans-serif; background: #f4f4f4; padding: 10px; margin: 0; }
+    .container { max-width: 600px; margin: auto; background: white; padding: 15px; border-radius: 8px; border: 1px solid #ccc; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+    .header-box { background: #1a73e8; color: white; padding: 10px; border-radius: 5px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; }
+    .date-picker { padding: 5px; border-radius: 4px; border: none; font-weight: bold; cursor: pointer; }
+    .add-section { background: #eef2f7; padding: 10px; border-radius: 5px; margin-bottom: 15px; border: 1px solid #1a73e8; display: flex; gap: 5px; }
+    .add-section input { flex-grow: 1; padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
+    .btn-save { padding: 8px 15px; background: #1a73e8; color: white; border: none; cursor: pointer; border-radius: 4px; font-weight: bold; }
+    .summary { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+    .box { text-align: center; border: 1px solid #ddd; padding: 10px; border-radius: 5px; background: #fff; }
+    .box label { font-size: 11px; color: #666; font-weight: bold; display: block; }
+    .box b, .box input { font-size: 16px; font-weight: bold; margin-top: 5px; text-align: center; width: 100%; border: none; background: transparent; outline: none; }
+    .tag { background: #333; color: white; padding: 5px 10px; border-radius: 4px; font-size: 13px; font-weight: bold; margin-top: 15px; display: inline-block; width: 95%; }
+
+    /* --- सुधरा हुआ टेबल सेक्शन --- */
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; table-layout: fixed; } 
+    th { background: #eee; font-size: 9px; padding: 4px 2px; border: 1px solid #000; }
+    td { border: 1px solid #000; padding: 2px; text-align: center; vertical-align: top; }
+
+    /* 1. Aaj Ka Auto Table के लिए */
+    #autoBody tr td:nth-child(1), #autoBody + tfoot td:nth-child(1), th:nth-child(1) { width: 30%; } /* Name */
+    #autoBody tr td:nth-child(2), th:nth-child(2) { width: 15%; } /* Amt 100% */
+    #autoBody tr td:nth-child(3), th:nth-child(3) { width: 15%; } /* Amt 103% */
+    #autoBody tr td:nth-child(4), th:nth-child(4) { width: 25%; } /* Collection */
+    #autoBody tr td:nth-child(5), th:nth-child(5) { width: 15%; } /* Dues */
+
+    /* 2. Old Dues Table के लिए (विशेष सुधार) */
+    #oldBody tr td:nth-child(1) { width: 20% !important; } /* Date */
+    #oldBody tr td:nth-child(2) { width: 30% !important; } /* Retailer Name */
+    #oldBody tr td:nth-child(3) { width: 15% !important; } /* Old Amount */
+    #oldBody tr td:nth-child(4) { width: 20% !important; } /* Received */
+    #oldBody tr td:nth-child(5) { width: 15% !important; } /* Remaining */
+
+    input { width: 100%; padding: 4px 2px; border: 1px solid #ddd; border-radius: 3px; box-sizing: border-box; font-size: 11px; }
+    .total-row-box { background: #f9f9f9; font-weight: bold; font-size: 10px; border: 1px solid #333 !important; text-align: center; padding: 2px 0; }
+    
+    .btn-row { background: #607d8b; color: white; padding: 8px; width: 100%; border: none; margin-top: 8px; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold; }
+    .btn-main { background: #28a745; color: white; padding: 12px; width: 100%; border: none; margin-top: 20px; font-size: 16px; border-radius: 6px; cursor: pointer; font-weight: bold; }
+    .online-details, .other-details { display: none; margin-top: 2px; }
+    .mini-input { font-size: 9px !important; height: 20px !important; padding: 1px !important; margin-bottom: 2px; border: 1px solid #2196f3 !important; }
+    /* आइकन के लिए स्टाइल */
+    .action-icons { display: flex; gap: 10px; margin-top: 5px; justify-content: center; }
+    .action-icons a { text-decoration: none; font-size: 18px; }
+    .call-icon { color: #1a73e8; } /* Blue for Call */
+    .wa-icon { color: #25D366; }   /* Green for WhatsApp */
+    .note-input { width: 100%; font-size: 10px; margin-top: 4px; border: 1px dashed #ccc; }
+
+</style>
+
+
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jio Hisab Pro - Smart Carry Forward</title>
+    <
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+</head>
+<body>
+
+<div class="container">
+    <div id="captureArea">
+        <div class="header-box">
+            <span>Jio Hisab Pro</span>
+            <input type="date" id="currentDate" class="date-picker" onchange="loadDayData()">
+        </div>
+
+        <div class="add-section" style="flex-direction: column; gap: 8px;">
+    <input type="text" id="retailerInput" placeholder="रिटेलर का नाम यहाँ लिखें...">
+    <input type="number" id="mobileInput" placeholder="मोबाइल नंबर यहाँ लिखें...">
+    <button type="button" class="btn-save" style="width: 100%;" onclick="saveToMaster()">रिटेलर और नंबर सेव करें</button>
+</div>
+
+
+        <div class="summary">
+            <div class="box"><label>Opening Balance</label><input type="number" id="openingVal" value="0" oninput="runGlobalCalc()"></div>
+            <div class="box"><label>Today Add</label><input type="number" id="addingVal" value="0" oninput="runGlobalCalc()"></div>
+            <div class="box" style="background:#fff3e0;"><label>Today Sale (103%)</label><b id="totalSaleLabel">0.00</b></div>
+            <div class="box" style="background:#e8f5e9;"><label>Closing Balance</label><b id="closingBalLabel">0.00</b></div>
+        </div>
+
+        <div class="tag" style="background: #546e7a;">Collection Summary</div>
+        <div class="summary" style="grid-template-columns: 1fr 1fr 1fr;">
+            <div class="box"><label>Cash</label><b id="sumCash">0.00</b></div>
+            <div class="box"><label>Online</label><b id="sumOnline">0.00</b></div>
+            <div class="box"><label>Other</label><b id="sumOther">0.00</b></div>
+        </div>
+        
+        <div class="box" style="border: 2px solid #333; margin-bottom: 20px;">
+            <label>FINAL MARKET DUES (A - B)</label>
+            <b id="finalBalanceResult" style="font-size: 24px; color: #d32f2f;">0.00</b>
+        </div>
+
+        <div class="add-section" style="border-color: #28a745; flex-direction: column; background: #e8f5e9;">
+            <label style="font-weight: bold; color: #2e7d32;">Jio Portal से डेटा यहाँ पेस्ट करें:</label>
+            <textarea id="bulkPasteInput" rows="4" placeholder="Jio Connect की टेबल कॉपी करके यहाँ पेस्ट करें..." style="width: 100%; border: 1px solid #28a745; border-radius: 4px; padding: 8px; margin: 5px 0; font-size: 12px;"></textarea>
+            <button type="button" class="btn-main" style="background:#28a745; margin:0;" onclick="processBulkPaste()">डेटा ऑटो-फिल करें</button>
+        </div>
+
+        <div class="tag">Aaj Ka Auto (Refill)</div>
+        <table>
+            <thead>
+                <tr>
+                    <th width="25%">Retailer Name</th>
+                    <th>Amt (100%)</th>
+                    <th>Amt (103%)</th>
+                    <th width="25%">Collection</th>
+                    <th>Dues</th>
+                </tr>
+            </thead>
+            <tbody id="autoBody"></tbody>
+            <tfoot>
+                <tr style="background: #eee;">
+                    <td>TOTAL:</td>
+                    <td><input type="number" id="totalV100" class="total-row-box" readonly value="0"></td>
+                    <td><input type="number" id="totalV103" class="total-row-box" readonly value="0"></td>
+                    <td></td>
+                    <td><input type="number" id="totalDues" class="total-row-box" readonly value="0"></td>
+                </tr>
+            </tfoot>
+        </table>
+        <button type="button" class="btn-row" onclick="addRow('autoBody')">+ नया रिटेलर जोड़ें</button>
+
+        <div class="tag" style="background: #a94442;">Old Dues (Carry Forwarded)</div>
+        <table>
+            <thead>
+                <tr>
+                    <th width="20%">Date</th>
+                    <th width="25%">Retailer Name</th>
+                    <th>Old Amount</th>
+                    <th>Received</th>
+                    <th>Remaining</th>
+                </tr>
+            </thead>
+            <tbody id="oldBody"></tbody>
+            <tfoot>
+                <tr style="background: #fce4e4;">
+                    <td colspan="2">TOTAL:</td>
+                    <td><input type="number" id="totalOldAmt" class="total-row-box" readonly value="0"></td>
+                    <td></td>
+                    <td><input type="number" id="totalOldRem" class="total-row-box" readonly value="0"></td>
+                </tr>
+            </tfoot>
+        </table>
+        <button type="button" class="btn-row" onclick="addRow('oldBody')">+ पुराना बकाया जोड़ें</button>
+    </div>
+
+    <button type="button" class="btn-main" onclick="saveDay()">आज का डेटा सेव करें</button>
+    <button type="button" class="btn-main" style="background:#6c5ce7;" onclick="uploadToCloud()">
+    Cloud पर सिंक करें (Backup)
+    <button type="button" class="btn-main" style="background:#009688; margin-top:10px;" onclick="fetchFromCloud()">
+    Cloud से डेटा यहाँ लोड करें
+</button>
+
+</button>
+
+    <button type="button" class="btn-main" style="background:#007bff; margin-top:10px;" onclick="shareFullPDF()">PDF शेयर करें (WhatsApp)</button>
+    <button type="button" class="btn-main" style="background:#25D366; margin-top:10px;" onclick="shareToWhatsApp()">
+    WhatsApp पर टेक्स्ट भेजें
+</button>
+
+
+    <div class="tag" style="background: #ff9800;">Online Collection Report</div>
+    <button type="button" class="btn-main" style="background:#ff9800; margin-top:10px;" onclick="showOnlineReport()">आज की Online Report देखें</button>
+    <div id="onlineReportSection" style="display:none; margin-top: 20px; border: 2px solid #ff9800; padding: 15px; border-radius: 8px; background: #fff;">
+        <h3 style="text-align:center; color:#ff9800; margin:0 0 10px 0;">Online Report</h3>
+        <p id="reportDate" style="text-align:center; font-weight:bold;"></p>
+        <table style="width:100%; border-collapse: collapse; font-size: 12px;">
+            <thead>
+                <tr style="background:#ff9800; color:white;">
+                    <th style="padding:5px; border:1px solid #ccc;">Retailer</th>
+                    <th style="padding:5px; border:1px solid #ccc;">Amount</th>
+                    <th style="padding:5px; border:1px solid #ccc;">Details</th>
+                </tr>
+            </thead>
+            <tbody id="reportItems"></tbody>
+            <tfoot>
+                <tr style="background:#eee; font-weight:bold;">
+                    <td>Total Online</td>
+                    <td id="reportTotal">0.00</td>
+                    <td></td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+
+    <div class="tag" style="background: #673ab7;">Monthly Retailer Search</div>
+    <div class="add-section" style="border-color: #673ab7; flex-direction: column; gap: 10px; display: flex !important;">
+        <input type="text" id="searchRetailerName" list="retailerList" placeholder="रिटेलर का नाम यहाँ लिखें...">
+        <input type="month" id="searchMonth" class="date-picker" style="width:100%; border:1px solid #ccc; height: 35px;">
+        <button type="button" class="btn-main" style="background:#673ab7; margin:0;" onclick="generateRetailerReport()">पूरे महीने का हिसाब देखें</button>
+    </div>
+    <div id="ledgerReportSection" style="display:none; margin-top: 20px; border: 2px solid #673ab7; padding: 15px; border-radius: 8px; background: #fff;">
+        <h3 style="text-align:center; color:#673ab7;" id="ledgerTitle">Ledger Report</h3>
+        <table style="font-size: 11px; width:100%;">
+            <thead>
+                <tr style="background:#673ab7; color:white;">
+                    <th>Date</th>
+                    <th>Type</th>
+                    <th>Sale</th>
+                    <th>Paid</th>
+                </tr>
+            </thead>
+            <tbody id="ledgerItems"></tbody>
+        </table>
+        <div id="ledgerSummary" style="margin-top:10px; font-weight:bold; font-size:14px; background:#f3e5f5; padding:8px;"></div>
+    </div>
+</div>
+
+<datalist id="retailerList"></datalist>
+
+<script>
+    window.onload = function() {
+        let today = new Date().toLocaleDateString('en-CA'); 
+        document.getElementById('currentDate').value = today;
+        loadMasterList();
+        loadDayData();
+    };
+
+    // 1. नाम और नंबर दोनों को सेव करना
+// 1. Retailer ko Firebase Cloud par save karna
+window.saveToMaster = function() {
+    let nameInp = document.getElementById('retailerInput');
+    let mobInp = document.getElementById('mobileInput');
+    let name = nameInp.value.trim();
+    let mobile = mobInp.value.trim();
+
+    if(name && mobile) {
+        // Firebase database mein 'master_retailers' ke andar data bhej raha hai
+        set(ref(db, 'master_retailers/' + name), mobile)
+        .then(() => {
+            alert(name + " ka data Cloud par save ho gaya!");
+            nameInp.value = ""; 
+            mobInp.value = "";
+        })
+        .catch(e => alert("Error: " + e.message));
+    } else {
+        alert("Kripya Naam aur Mobile Number dono bharen.");
+    }
+};
+
+// 2. Jio Bulk Paste mein auto-number filling logic
+window.processBulkPaste = function() {
+    const inp = document.getElementById('bulkPasteInput').value; 
+    if (!inp.trim()) return alert("Data paste karein!");
+    
+    // Local storage se master data load karein (jo Firebase se sync ho raha hai)
+    let masterData = JSON.parse(localStorage.getItem('master_retailers_new')) || {};
+
+    inp.split('\n').forEach(line => {
+        let p = line.split('\t'); 
+        if (p.length >= 6 && p[1] && parseFloat(p[3]) > 0) {
+            let rName = p[1].trim();
+            let v100Amt = (parseFloat(p[3])/1.03).toFixed(2);
+            
+            // Check karein ki kya is retailer ka number hamare paas hai
+            let savedMobile = masterData[rName] || ""; 
+
+            // addRow function ko name aur auto-fetched mobile number ke saath call karein
+            addRow('autoBody', { 
+                name: rName, 
+                v100: v100Amt, 
+                mobile: savedMobile 
+            });
+        }
+    });
+    document.getElementById('bulkPasteInput').value = ""; 
+    runGlobalCalc();
+};
+
+
+// 2. लिस्ट लोड करना (Datalist के लिए)
+function loadMasterList() {
+    let masterData = JSON.parse(localStorage.getItem('master_retailers_new')) || {};
+    let dl = document.getElementById('retailerList'); 
+    dl.innerHTML = "";
+    
+    Object.keys(masterData).forEach(name => { 
+        let opt = document.createElement('option'); 
+        opt.value = name; 
+        dl.appendChild(opt); 
+    });
+}
+
+// 3. नाम चुनते ही नंबर ऑटो-फिल करना
+// इस फंक्शन को हम input event पर कॉल करेंगे
+function attachAutoFill(inputElement) {
+    let name = inputElement.value;
+    let masterData = JSON.parse(localStorage.getItem('master_retailers_new')) || {};
+    
+    // अगर मास्टर लिस्ट में यह नाम मौजूद है
+    if(masterData[name]) {
+        let row = inputElement.closest('tr');
+        let mobField = row.querySelector('.rmobile');
+        
+        if(mobField) {
+            // मोबाइल नंबर भरना
+            mobField.value = masterData[name];
+            
+            // कॉल और व्हाट्सएप लिंक को तुरंत अपडेट करना
+            let callBtn = row.querySelector('.call-btn');
+            let waBtn = row.querySelector('.wa-btn');
+            
+            if(callBtn) callBtn.href = 'tel:' + masterData[name];
+            if(waBtn) waBtn.href = 'https://wa.me/91' + masterData[name];
+        }
+    }
+}
+
+
+
+    function addRow(id, data = null) {
+    let tbody = document.getElementById(id);
+    let tr = document.createElement('tr');
+    
+    // डेटा मौजूद है या नहीं, उसके आधार पर वैल्यू सेट करना
+    let name = data ? data.name : '';
+    let amt = data ? (data.v100 || data.amt || 0) : 0;
+    let mobile = data ? data.mobile || '' : ''; // नया: मोबाइल नंबर
+    let callNote = data ? data.callNote || '' : ''; // नया: कॉल नोट
+    
+    let cash = data ? (data.cash || 0) : 0;
+    let online = data ? (data.online || 0) : 0;
+    let other = data ? (data.other || 0) : 0;
+    let date = data ? (data.date || '') : '';
+    let bank = data ? (data.bank || '') : '';
+    let onDesc = data ? (data.onDesc || '') : '';
+    let otDesc = data ? (data.otDesc || '') : '';
+
+    // कलेक्शन वाले हिस्से का HTML (पुराना वाला ही है)
+    let collHTML = `
+        <input type="number" class="cash-coll" oninput="runGlobalCalc()" value="${cash}" placeholder="Cash" style="margin-bottom:2px;">
+        <input type="number" class="online-coll" oninput="runGlobalCalc()" value="${online}" placeholder="Online" style="background:#e3f2fd; margin-bottom:2px;">
+        <div class="online-details">
+            <input type="text" class="bank-acc mini-input" value="${bank}" placeholder="A/C Name">
+            <input type="text" class="online-desc mini-input" value="${onDesc}" placeholder="UTR/Ref No.">
+        </div>
+        <input type="number" class="other-coll" oninput="runGlobalCalc()" value="${other}" placeholder="Other" style="background:#fff3e0; margin-bottom:2px;">
+        <div class="other-details">
+            <input type="text" class="other-desc mini-input" value="${otDesc}" placeholder="Details">
+        </div>
+    `;
+
+    // नया: कॉलिंग और व्हाट्सएप आइकन वाला सेक्शन
+    let actionHTML = `
+        <div style="display: flex; gap: 15px; margin: 5px 0; justify-content: center;">
+            <a href="tel:${mobile}" class="call-btn" style="text-decoration:none; font-size:18px;">📞</a>
+            <a href="https://wa.me/91${mobile}" target="_blank" class="wa-btn" style="text-decoration:none; font-size:18px;">💬</a>
+        </div>
+        <input type="number" class="rmobile" placeholder="Mobile" value="${mobile}" 
+               style="width:90%; font-size:10px; margin-bottom:3px;" 
+               oninput="this.parentElement.querySelector('.call-btn').href='tel:'+this.value; this.parentElement.querySelector('.wa-btn').href='https://wa.me/91'+this.value;">
+        <input type="text" class="call-note" placeholder="कॉल नोट (जैसे: बात हुई)" value="${callNote}" 
+               style="width:90%; font-size:9px; border:1px dashed #999;">
+    `;
+
+    // टेबल में रो (Row) जोड़ना
+    if(id === 'autoBody') {
+        tr.innerHTML = `
+            <td><input type="text" list="retailerList" class="rname" value="${name}" oninput="attachAutoFill(this)">
+                ${actionHTML}
+            </td>
+            <td><input type="number" class="v100" oninput="runGlobalCalc()" value="${amt}"></td>
+            <td><input type="number" class="v103" readonly value="0"></td>
+            <td>${collHTML}</td>
+            <td><input type="number" class="dues" readonly value="0"></td>`;
+    } else {
+        tr.innerHTML = `
+            <td><input type="text" class="odate" value="${date}" placeholder="Date"></td>
+            <td>
+    <input type="text" list="retailerList" class="rname" value="${name}" oninput="attachAutoFill(this)">
+    ${actionHTML}
+</td>
+
+            <td><input type="number" class="otot" oninput="runGlobalCalc()" value="${amt}"></td>
+            <td>${collHTML}</td>
+            <td><input type="number" class="orem" readonly value="0"></td>`;
+    }
+    
+    tbody.appendChild(tr);
+    runGlobalCalc();
+}
+
+
+    function runGlobalCalc() {
+        let op = parseFloat(document.getElementById('openingVal').value) || 0;
+        let ad = parseFloat(document.getElementById('addingVal').value) || 0;
+        let sV100 = 0, sV103 = 0, cashT = 0, onlineT = 0, otherT = 0, sOldAmt = 0, sOldRem = 0;
+
+        document.querySelectorAll('tr').forEach(row => {
+            let oInp = row.querySelector('.online-coll'); let tInp = row.querySelector('.other-coll');
+            if(oInp) row.querySelector('.online-details').style.display = (parseFloat(oInp.value) > 0) ? 'block' : 'none';
+            if(tInp) row.querySelector('.other-details').style.display = (parseFloat(tInp.value) > 0) ? 'block' : 'none';
+        });
+
+        document.querySelectorAll('#autoBody tr').forEach(row => {
+            let v100 = parseFloat(row.querySelector('.v100').value) || 0;
+            let c = parseFloat(row.querySelector('.cash-coll')?.value) || 0;
+            let o = parseFloat(row.querySelector('.online-coll')?.value) || 0;
+            let m = parseFloat(row.querySelector('.other-coll')?.value) || 0;
+            let total = c + o + m;
+            sV100 += v100; sV103 += (v100 * 1.03); cashT += c; onlineT += o; otherT += m;
+            row.querySelector('.v103').value = (v100 * 1.03).toFixed(2); row.querySelector('.dues').value = (v100 - total).toFixed(2);
+        });
+
+        document.querySelectorAll('#oldBody tr').forEach(row => {
+            let otot = parseFloat(row.querySelector('.otot').value) || 0;
+            let c = parseFloat(row.querySelector('.cash-coll')?.value) || 0;
+            let o = parseFloat(row.querySelector('.online-coll')?.value) || 0;
+            let m = parseFloat(row.querySelector('.other-coll')?.value) || 0;
+            let total = c + o + m;
+            sOldAmt += otot; sOldRem += (otot - total); cashT += c; onlineT += o; otherT += m;
+            row.querySelector('.orem').value = (otot - total).toFixed(2);
+        });
+
+        document.getElementById('sumCash').innerText = cashT.toFixed(2);
+        document.getElementById('sumOnline').innerText = onlineT.toFixed(2);
+        document.getElementById('sumOther').innerText = otherT.toFixed(2);
+        document.getElementById('totalSaleLabel').innerText = sV103.toFixed(2);
+        document.getElementById('closingBalLabel').innerText = (op + ad - sV103).toFixed(2);
+        document.getElementById('finalBalanceResult').innerText = (sV100 + sOldAmt - (cashT + onlineT + otherT)).toFixed(2);
+        document.getElementById('totalV100').value = sV100.toFixed(2);
+        document.getElementById('totalV103').value = sV103.toFixed(2);
+        document.getElementById('totalDues').value = (sV100 - (cashT+onlineT+otherT) + (sOldAmt-sOldRem)).toFixed(2);
+        document.getElementById('totalOldAmt').value = sOldAmt.toFixed(2);
+        document.getElementById('totalOldRem').value = sOldRem.toFixed(2);
+    }
+
+    function saveDay() {
+    let date = document.getElementById('currentDate').value;
+    let autoRows = [], oldRows = [], groupingMap = {}; 
+
+    // 1. आज का रिफिल (Aaj Ka Auto) डेटा इकट्ठा करना
+    document.querySelectorAll('#autoBody tr').forEach(row => {
+        let name = row.querySelector('.rname').value.trim();
+        if(name) {
+            let data = { 
+                name: name,
+                mobile: row.querySelector('.rmobile')?.value || "", // मोबाइल नंबर कैप्चर करें
+                callNote: row.querySelector('.call-note')?.value || "", // कॉल नोट कैप्चर करें
+                v100: row.querySelector('.v100').value, 
+                cash: row.querySelector('.cash-coll').value || 0, 
+                online: row.querySelector('.online-coll').value || 0, 
+                bank: row.querySelector('.bank-acc').value || "", 
+                onDesc: row.querySelector('.online-desc').value || "", 
+                other: row.querySelector('.other-coll').value || 0, 
+                otDesc: row.querySelector('.other-desc').value || "", 
+                dues: parseFloat(row.querySelector('.dues').value) || 0 
+            };
+            autoRows.push(data);
+            if(data.dues > 0) { 
+                if(!groupingMap[name]) groupingMap[name]={total:0, dates:[], mobile: data.mobile}; 
+                groupingMap[name].total += data.dues; 
+                groupingMap[name].dates.push(date); 
+            }
+        }
+    });
+
+    // 2. पुराना बकाया (Old Dues) डेटा इकट्ठा करना
+    document.querySelectorAll('#oldBody tr').forEach(row => {
+        let name = row.querySelector('.rname').value.trim(); 
+        let odate = row.querySelector('.odate').value;
+        if(name) {
+            let data = { 
+                date: odate, 
+                name: name, 
+                mobile: row.querySelector('.rmobile')?.value || "", // मोबाइल नंबर कैप्चर करें
+                callNote: row.querySelector('.call-note')?.value || "", // कॉल नोट कैप्चर करें
+                amt: row.querySelector('.otot').value, 
+                cash: row.querySelector('.cash-coll').value || 0, 
+                online: row.querySelector('.online-coll').value || 0, 
+                bank: row.querySelector('.bank-acc').value || "", 
+                onDesc: row.querySelector('.online-desc').value || "", 
+                other: row.querySelector('.other-coll').value || 0, 
+                otDesc: row.querySelector('.other-desc').value || "", 
+                orem: parseFloat(row.querySelector('.orem').value) || 0 
+            };
+            oldRows.push(data);
+            if(data.orem > 0) { 
+                if(!groupingMap[name]) groupingMap[name]={total:0, dates:[], mobile: data.mobile}; 
+                groupingMap[name].total += data.orem; 
+                if(!groupingMap[name].dates.includes(odate)) groupingMap[name].dates.push(odate); 
+            }
+        }
+    });
+
+    // अगले दिन के लिए पेंडिंग लिस्ट तैयार करना (इसमें भी मोबाइल नंबर जोड़ दिया है)
+    let pending = Object.keys(groupingMap).map(n => ({ 
+        date: groupingMap[n].dates.join(", "), 
+        name: n, 
+        amt: groupingMap[n].total.toFixed(2),
+        mobile: groupingMap[n].mobile 
+    }));
+
+    // Local Storage में सेव करना
+    localStorage.setItem('day_' + date, JSON.stringify({ 
+        opening: document.getElementById('openingVal').value, 
+        adding: document.getElementById('addingVal').value, 
+        closing: document.getElementById('closingBalLabel').innerText, 
+        autoRows, 
+        oldRows, 
+        pendingNextDay: pending 
+    }));
+
+    alert("डेटा (मोबाइल नंबर के साथ) सेव हो गया!");
+}
+
+
+    function loadDayData() {
+        let selDate = document.getElementById('currentDate').value;
+        let saved = JSON.parse(localStorage.getItem('day_' + selDate));
+        document.getElementById('autoBody').innerHTML = ""; document.getElementById('oldBody').innerHTML = "";
+        if(saved) {
+            document.getElementById('openingVal').value = saved.opening; document.getElementById('addingVal').value = saved.adding;
+            if(saved.autoRows?.length > 0) saved.autoRows.forEach(row => addRow('autoBody', row)); else addRow('autoBody');
+            if(saved.oldRows?.length > 0) saved.oldRows.forEach(row => addRow('oldBody', row)); else addRow('oldBody');
+        } else {
+            let prev = new Date(selDate); prev.setDate(prev.getDate() - 1);
+            let prevData = JSON.parse(localStorage.getItem('day_' + prev.toLocaleDateString('en-CA')));
+            document.getElementById('openingVal').value = prevData ? prevData.closing : 0;
+            if(prevData?.pendingNextDay?.length > 0) prevData.pendingNextDay.forEach(i => addRow('oldBody', i)); else addRow('oldBody');
+            document.getElementById('addingVal').value = 0; addRow('autoBody');
+        }
+        runGlobalCalc();
+    }
+
+    function showOnlineReport() {
+        let items = document.getElementById('reportItems'); let total = 0; let date = document.getElementById('currentDate').value;
+        items.innerHTML = ""; document.getElementById('reportDate').innerText = "तारीख: " + date;
+        document.querySelectorAll('tr').forEach(row => {
+            let oInp = row.querySelector('.online-coll');
+            if (oInp && parseFloat(oInp.value) > 0) {
+                let amt = parseFloat(oInp.value); total += amt;
+                let bank = row.querySelector('.bank-acc')?.value || "-";
+                let ref = row.querySelector('.online-desc')?.value || "-";
+                items.innerHTML += `<tr><td style="border:1px solid #ccc; padding:5px;">${row.querySelector('.rname')?.value}</td><td style="border:1px solid #ccc; padding:5px; text-align:center;">${amt.toFixed(2)}</td><td style="border:1px solid #ccc; padding:5px;">A/C: ${bank}<br>Ref: ${ref}</td></tr>`;
+            }
+        });
+        document.getElementById('reportTotal').innerText = total.toFixed(2);
+        document.getElementById('onlineReportSection').style.display = total > 0 ? "block" : "none";
+        if (total === 0) alert("कोई ऑनलाइन पेमेंट नहीं मिली।");
+    }
+    
+    function updateLinks(input) {
+    let parent = input.parentElement;
+    let mobile = input.value;
+    parent.querySelector('.call-icon').href = "tel:" + mobile;
+    parent.querySelector('.wa-icon').href = "https://wa.me/91" + mobile;
+}
+
+    function generateRetailerReport() {
+        let name = document.getElementById('searchRetailerName').value; let month = document.getElementById('searchMonth').value;
+        let reportBody = document.getElementById('ledgerItems'); let totalS = 0, totalP = 0;
+        if(!name || !month) return alert("रिटेलर और महीना चुनें!");
+        reportBody.innerHTML = "";
+        for (let i = 0; i < localStorage.length; i++) {
+            let key = localStorage.key(i);
+            if (key.startsWith('day_' + month)) {
+                let data = JSON.parse(localStorage.getItem(key)); let date = key.replace('day_', '');
+                data.autoRows?.forEach(r => { if(r.name === name) { totalS += parseFloat(r.v100 || 0); let p = parseFloat(r.cash)+parseFloat(r.online)+parseFloat(r.other); totalP += p; addLRow(date, "Auto", r.v100, p); } });
+                data.oldRows?.forEach(r => { if(r.name === name) { let p = parseFloat(r.cash)+parseFloat(r.online)+parseFloat(r.other); totalP += p; if(p > 0) addLRow(date, "Due Paid", 0, p); } });
+            }
+        }
+        document.getElementById('ledgerSummary').innerHTML = `कुल सेल: ${totalS.toFixed(2)} | कुल जमा: ${totalP.toFixed(2)} <br> नेट बकाया: ${(totalS - totalP).toFixed(2)}`;
+        document.getElementById('ledgerReportSection').style.display = "block";
+    }
+
+    function addLRow(d, t, s, p) { document.getElementById('ledgerItems').innerHTML += `<tr><td style="border:1px solid #ccc; padding:4px;">${d}</td><td style="border:1px solid #ccc; padding:4px;">${t}</td><td style="border:1px solid #ccc; padding:4px;">${s}</td><td style="border:1px solid #ccc; padding:4px;">${p}</td></tr>`; }
+
+    async function shareFullPDF() {
+    const el = document.getElementById('captureArea');
+    const date = document.getElementById('currentDate').value || 'report';
+    
+    // PDF बनाने से पहले बटन छुपाएं
+    const btns = document.querySelectorAll('button');
+    btns.forEach(b => b.style.display = 'none');
+
+    const opt = { 
+        margin: [5, 5, 5, 5], 
+        filename: `JioHisab_${date}.pdf`, 
+        image: { type: 'jpeg', quality: 0.98 }, 
+        html2canvas: { scale: 2, scrollY: 0, useCORS: true }, 
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } 
+    };
+
+    try {
+        // AppGeyser/WebView के लिए सबसे सुरक्षित तरीका: Direct Download
+        // यह ऐप के अंदर 'Download' ट्रिगर करेगा जिसे यूजर फाइल मैनेजर से शेयर कर सकता है
+        await html2pdf().set(opt).from(el).save();
+        
+        // एक छोटा मैसेज दिखाएँ
+        alert("PDF डाउनलोड हो गया है। कृपया इसे अपने File Manager या Downloads फोल्डर से WhatsApp पर शेयर करें।");
+        
+    } catch (e) {
+        console.error("PDF Error: ", e);
+        alert("PDF बनाने में समस्या आई।");
+    } finally {
+        // बटन वापस दिखाएं
+        btns.forEach(b => b.style.display = 'block');
+    }
+}
+    
+
+    function processBulkPaste() {
+        const inp = document.getElementById('bulkPasteInput').value; if (!inp.trim()) return alert("डेटा पेस्ट करें!");
+        inp.split('\n').forEach(line => {
+            let p = line.split('\t'); if (p.length >= 6 && p[1] && parseFloat(p[3]) > 0) addRow('autoBody', { name: p[1].trim(), v100: (parseFloat(p[3])/1.03).toFixed(2) });
+        });
+        document.getElementById('bulkPasteInput').value = ""; runGlobalCalc();
+    }
+    function shareToWhatsApp() {
+    let date = document.getElementById('currentDate').value;
+    let cash = document.getElementById('sumCash').innerText;
+    let online = document.getElementById('sumOnline').innerText;
+    let finalDues = document.getElementById('finalBalanceResult').innerText;
+    
+    let message = `*Jio Hisab Pro Report*\n`;
+    message += `तारीख: ${date}\n`;
+    message += `---------------------------\n`;
+
+    // 1. आज का रिफिल (Auto Refill) जोड़ना
+    message += `*आज का रिफिल (Auto):*\n`;
+    let autoRows = document.querySelectorAll('#autoBody tr');
+    let autoFound = false;
+    autoRows.forEach(row => {
+        let name = row.querySelector('.rname')?.value;
+        let v100 = row.querySelector('.v100')?.value;
+        let dues = row.querySelector('.dues')?.value;
+        if(name && v100 > 0) {
+            message += `• ${name}: ₹${v100} (Dues: ₹${dues})\n`;
+            autoFound = true;
+        }
+    });
+    if(!autoFound) message += `कोई रिफिल नहीं।\n`;
+
+    message += `---------------------------\n`;
+
+    // 2. पिछला बकाया (Old Dues) जोड़ना
+    message += `*पुराना बकाया (Old Dues):*\n`;
+    let oldRows = document.querySelectorAll('#oldBody tr');
+    let oldFound = false;
+    oldRows.forEach(row => {
+        let name = row.querySelector('.rname')?.value;
+        let amt = row.querySelector('.otot')?.value;
+        let rem = row.querySelector('.orem')?.value;
+        if(name && amt > 0) {
+            message += `• ${name}: ₹${amt} (Baki: ₹${rem})\n`;
+            oldFound = true;
+        }
+    });
+    if(!oldFound) message += `कोई पुराना बकाया नहीं।\n`;
+
+    message += `---------------------------\n`;
+
+    // 3. कलेक्शन समरी
+    message += `*Collection Summary:*\n`;
+    message += `Cash: ₹${cash}\n`;
+    message += `Online: ₹${online}\n`;
+    message += `*Total Market Dues: ₹${finalDues}*\n`;
+    message += `---------------------------`;
+
+    // WhatsApp ओपन करना
+    let whatsappUrl = "whatsapp://send?text=" + encodeURIComponent(message);
+    window.location.href = whatsappUrl;
+}
+
+
+</script>
+ <script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-app.js";
+import { getDatabase, ref, set, get, child, onValue } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-database.js";
+
+const firebaseConfig = {
+    apiKey: "AIzaSyBR_bxXvScwI9rIK8hLcJYJo5iKgNwMICc",
+    authDomain: "leger-jio.firebaseapp.com",
+    databaseURL: "https://leger-jio-default-rtdb.firebaseio.com",
+    projectId: "leger-jio",
+    storageBucket: "leger-jio.firebasestorage.app",
+    messagingSenderId: "868355318362",
+    appId: "1:868355318362:web:4b22a23c88486ba82b2e63"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
+// 1. क्लाउड से मास्टर रिटेलर लिस्ट सिंक करना
+const masterRef = ref(db, 'master_retailers');
+onValue(masterRef, (snapshot) => {
+    if (snapshot.exists()) {
+        const data = snapshot.val();
+        localStorage.setItem('master_retailers_new', JSON.stringify(data));
+        if (typeof window.loadMasterList === "function") window.loadMasterList();
+        console.log("Master list synced");
+    }
+});
+
+// 2. सिंक (Upload) फंक्शन
+window.uploadToCloud = function() {
+    let date = document.getElementById('currentDate').value;
+    let localData = localStorage.getItem('day_' + date);
+
+    if (!localData) {
+        alert("पहले आज का डेटा 'सेव' बटन दबाकर सुरक्षित करें!");
+        return;
+    }
+
+    let parsedData = JSON.parse(localData);
+    // डेटा को 'daily_reports/YYYY-MM-DD' के अंदर सेव करना
+    set(ref(db, 'daily_reports/' + date), parsedData)
+    .then(() => {
+        alert("तारीख " + date + " का डेटा सफलतापूर्वक क्लाउड पर अपलोड हो गया!");
+    })
+    .catch((error) => {
+        alert("अपलोड फेल: " + error.message);
+    });
+};
+
+// 3. फेच (Download) फंक्शन
+window.fetchFromCloud = function() {
+    let date = document.getElementById('currentDate').value;
+    const dbRef = ref(getDatabase());
+
+    get(child(dbRef, `daily_reports/${date}`)).then((snapshot) => {
+        if (snapshot.exists()) {
+            let cloudData = snapshot.val();
+            // लोकल स्टोरेज में अपडेट करें
+            localStorage.setItem('day_' + date, JSON.stringify(cloudData));
+            // पेज पर डेटा लोड करें
+            window.loadDayData();
+            alert("क्लाउड से डेटा लोड हो गया है!");
+        } else {
+            alert("इस तारीख का कोई डेटा क्लाउड पर नहीं मिला।");
+        }
+    }).catch((error) => {
+        alert("डेटा लाने में त्रुटि: " + error.message);
+    });
+};
+
+// रिटेलर सेव करने वाला फंक्शन (जो आपने पहले लिखा था)
+window.saveToMaster = function() {
+    let nameInp = document.getElementById('retailerInput');
+    let mobInp = document.getElementById('mobileInput');
+    let name = nameInp.value.trim();
+    let mobile = mobInp.value.trim();
+
+    if(name && mobile) {
+        set(ref(db, 'master_retailers/' + name), mobile)
+        .then(() => {
+            alert(name + " का डेटा क्लाउड पर सेव हो गया!");
+            nameInp.value = ""; 
+            mobInp.value = "";
+        })
+        .catch(e => alert("Error: " + e.message));
+    } else {
+        alert("नाम और मोबाइल नंबर दोनों भरें।");
+    }
+};
+
+</script>
+</body>
+</html>
